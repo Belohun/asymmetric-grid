@@ -12,7 +12,7 @@ const colorList = const [
   Colors.yellow,
 ];
 
-const childrenCount = 12;
+const childrenCount = 40;
 
 const _animationDuration = Duration(milliseconds: 200);
 
@@ -54,11 +54,13 @@ class _HomePageState extends State<HomePage> {
       appBar: AppBar(title: Text('Example')),
       body: Padding(
         padding: const EdgeInsets.all(16),
-        child: SizedBox(
-          width: double.infinity,
-          child: AsymmetricGrid(
+        child: SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: AsymmetricGrid.sameDirectionAlignment(
             crossAxisSpacing: 16,
             mainAxisSpacing: 16,
+            gridDirection: Axis.horizontal,
+            crossAxisWidgetCount: 4,
             children: generateChildren().toList(),
           ),
         ),
@@ -91,6 +93,9 @@ class _HomePageState extends State<HomePage> {
           color: colorList[k],
           height: size,
           width: size,
+          child: Center(
+            child: Text('$i', style: TextStyle(color: Colors.black)),
+          ),
         ),
       );
 
