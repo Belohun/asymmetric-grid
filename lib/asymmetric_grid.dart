@@ -4,32 +4,28 @@ import 'package:asymmetric_grid/positioned_size.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/rendering.dart';
 
-enum AsymmetricGridDirection {
-  ///Left to right
-  ltr,
-
-  ///Right to left
-  rtl,
-
-  ///Top to bottom
-  ttb,
-
-  ///Bottom to top
-  btt,
-}
-
 class AsymmetricGrid extends MultiChildRenderObjectWidget {
+  ///Creates array of children that will position themselves in closest available position.
   AsymmetricGrid({
     required super.children,
     super.key,
-    this.direction = Axis.horizontal,
+    this.gridDirection = Axis.vertical,
     this.mainAxisSpacing = 0,
     this.crossAxisSpacing = 0,
-    this.gridDirection = AsymmetricGridDirection.ltr,
-  });
+  })  : alignmentDirection = gridDirection == Axis.vertical ? Axis.horizontal : Axis.vertical,
+        crossAxisWidgetCount = 0;
+
+  AsymmetricGrid.sameDirectionAlignment({
+    required super.children,
+    required this.crossAxisWidgetCount,
+    this.gridDirection = Axis.vertical,
+    this.mainAxisSpacing = 0,
+    this.crossAxisSpacing = 0,
+    super.key,
+  }) : alignmentDirection = gridDirection;
 
   ///Direction that layout will expand to.
-  final Axis direction;
+  final Axis gridDirection;
 
   ///Space that takes between children in main axis.
   final double mainAxisSpacing;
@@ -38,17 +34,32 @@ class AsymmetricGrid extends MultiChildRenderObjectWidget {
   final double crossAxisSpacing;
 
   ///Defines which direction children will take when placing themselves in the layout.
-  ///F.e if gridDirection is set to AsymmetricGridDirection.ttb, first child will be set at the top left corner
+  ///F.e if [gridDirection] is set to [Axis.vertical], first child will be set at the top left corner
   ///and the second child will be placed under the first child.
-  final AsymmetricGridDirection gridDirection;
+  final Axis alignmentDirection;
+
+  ///Widget count in crossAxis direction to [gridDirection]. This only affects when [gridDirection] is in same direction as [alignmentDirection].
+  final int crossAxisWidgetCount;
 
   @override
   RenderObject createRenderObject(BuildContext context) {
     return RenderAsymmetricGrid(
-      direction: direction,
+      gridDirection: gridDirection,
       crossAxisSpacing: crossAxisSpacing,
       mainAxisSpacing: mainAxisSpacing,
+      alignmentDirection: alignmentDirection,
+      crossAxisWidgetCount: crossAxisWidgetCount,
     );
+  }
+
+  @override
+  void updateRenderObject(BuildContext context, RenderAsymmetricGrid renderObject) {
+    renderObject
+      ..gridDirection = gridDirection
+      ..crossAxisSpacing = crossAxisSpacing
+      ..mainAxisSpacing = mainAxisSpacing
+      ..alignmentDirection = alignmentDirection
+      ..crossAxisWidgetCount = crossAxisWidgetCount;
   }
 }
 
@@ -59,20 +70,34 @@ class RenderAsymmetricGrid extends RenderBox
         ContainerRenderObjectMixin<RenderBox, AsymmetricGridParentData>,
         RenderBoxContainerDefaultsMixin<RenderBox, AsymmetricGridParentData> {
   RenderAsymmetricGrid({
-    required Axis direction,
+    required Axis gridDirection,
     required double crossAxisSpacing,
     required double mainAxisSpacing,
-  })  : _direction = direction,
+    required Axis alignmentDirection,
+    required int crossAxisWidgetCount,
+  })  : _gridDirection = gridDirection,
         _mainAxisSpacing = mainAxisSpacing,
-        _crossAxisSpacing = crossAxisSpacing;
+        _crossAxisSpacing = crossAxisSpacing,
+        _alignmentDirection = alignmentDirection,
+        _crossAxisWidgetCount = crossAxisWidgetCount;
 
-  Axis _direction;
+  Axis _gridDirection;
 
-  Axis get direction => _direction;
+  Axis get gridDirection => _gridDirection;
 
-  set direction(Axis value) {
-    if (value == _direction) return;
-    _direction = value;
+  set gridDirection(Axis value) {
+    if (value == _gridDirection) return;
+    _gridDirection = value;
+    markParentNeedsLayout();
+  }
+
+  Axis _alignmentDirection;
+
+  Axis get alignmentDirection => _alignmentDirection;
+
+  set alignmentDirection(Axis value) {
+    if (value == _alignmentDirection) return;
+    _alignmentDirection = value;
     markParentNeedsLayout();
   }
 
@@ -81,7 +106,7 @@ class RenderAsymmetricGrid extends RenderBox
   double get mainAxisSpacing => _mainAxisSpacing;
 
   set mainAxisSpacing(double value) {
-    assert(value > 0, 'mainAxisSpacing must be greater than or equal to zero.');
+    assert(value >= 0, 'mainAxisSpacing must be greater than or equal to zero.');
     if (value == _mainAxisSpacing) return;
     _mainAxisSpacing = value;
     markParentNeedsLayout();
@@ -92,25 +117,27 @@ class RenderAsymmetricGrid extends RenderBox
   double get crossAxisSpacing => _crossAxisSpacing;
 
   set crossAxisSpacing(double value) {
-    assert(value > 0, 'crossAxisSpacing must be greater than or equal to zero.');
+    assert(value >= 0, 'crossAxisSpacing must be greater than or equal to zero.');
     if (value == _crossAxisSpacing) return;
     _crossAxisSpacing = value;
+    markParentNeedsLayout();
+  }
+
+  int _crossAxisWidgetCount;
+
+  int get crossAxisWidgetCount => _crossAxisWidgetCount;
+
+  set crossAxisWidgetCount(int value) {
+    assert(value > 0, 'mainAxisSpacing must be greater than zero.');
+    if (value == _crossAxisWidgetCount) return;
+    _crossAxisWidgetCount = value;
     markParentNeedsLayout();
   }
 
   late double maxVerticalSize;
   late double maxHorizontalSize;
 
-  final int horizontalLength = 3;
-  final int verticalLength = 4;
-
   List<PositionedSize> positionedSizes = [];
-
-  @override
-  OffsetLayer updateCompositedLayer({required covariant OffsetLayer? oldLayer}) {
-    // TODO: implement updateCompositedLayer
-    return super.updateCompositedLayer(oldLayer: oldLayer);
-  }
 
   @override
   void setupParentData(covariant RenderObject child) {
@@ -122,15 +149,6 @@ class RenderAsymmetricGrid extends RenderBox
   @override
   void performLayout() {
     final BoxConstraints constraints = this.constraints;
-    switch (_direction) {
-      case Axis.horizontal:
-        // TODO: Handle this case.
-        break;
-      case Axis.vertical:
-        // TODO: Handle this case.
-        break;
-    }
-
     maxHorizontalSize = constraints.maxWidth;
     maxVerticalSize = constraints.maxHeight;
 
@@ -146,19 +164,35 @@ class RenderAsymmetricGrid extends RenderBox
       );
 
       child.layout(
-        BoxConstraints(maxWidth: constraints.maxWidth),
+        _getInnerConstraints(constraints),
         parentUsesSize: true,
       );
 
       if (child != firstChild) {
         final positionedSize = PositionedSize(offset: currentPosition, size: child.size);
-        currentPosition = _getPositionInGrid(positionedSize);
+
+        switch (_alignmentDirection) {
+          case Axis.horizontal:
+            currentPosition = _getPositionInGridLTR(positionedSize);
+            break;
+          case Axis.vertical:
+            currentPosition = _getPositionInGridTTB(positionedSize);
+            break;
+        }
       }
 
       childParentData.offset = currentPosition;
 
-      currentX = currentPosition.dx + child.size.width + _crossAxisSpacing;
-      currentY = currentPosition.dy;
+      switch (alignmentDirection) {
+        case Axis.horizontal:
+          currentX = currentPosition.dx + child.size.width + _crossAxisSpacing;
+          currentY = currentPosition.dy;
+          break;
+        case Axis.vertical:
+          currentX = currentPosition.dx;
+          currentY = currentPosition.dy + child.size.height + _crossAxisSpacing;
+          break;
+      }
 
       final positionedSize = PositionedSize(
         offset: currentPosition,
@@ -169,38 +203,48 @@ class RenderAsymmetricGrid extends RenderBox
       child = childParentData.nextSibling;
     }
 
-    final height = positionedSizes.reduce(
-      (value, element) {
-        if (value.endY >= element.endY) {
-          return value;
-        } else {
-          return element;
-        }
-      },
-    ).endY;
+    _setUpSize(constraints);
 
-    final width = positionedSizes.reduce(
-      (value, element) {
-        if (value.endX >= element.endX) {
-          return value;
-        } else {
-          return element;
-        }
-      },
-    ).endX;
-
-    size = Size(constraints.maxWidth, constraints.maxHeight);
     positionedSizes = [];
+  }
 
-/*
-      child = firstChild;
-      while (child != null) {
-      final childParentData = child.parentData as AsymmetricGridParentData;
-      //TODO setup offsets
-      childParentData.offset = Offset(0, 0);
+  void _setUpSize(BoxConstraints constraints) {
+    switch (gridDirection) {
+      case Axis.horizontal:
+        final width = positionedSizes.reduce(
+          (value, element) {
+            if (value.endX >= element.endX) {
+              return value;
+            } else {
+              return element;
+            }
+          },
+        ).endX;
+        size = Size(width, constraints.maxHeight);
+        break;
 
-      child = childParentData.nextSibling;
-    }*/
+      case Axis.vertical:
+        final height = positionedSizes.reduce(
+          (value, element) {
+            if (value.endY >= element.endY) {
+              return value;
+            } else {
+              return element;
+            }
+          },
+        ).endY;
+        size = Size(constraints.maxWidth, height);
+        break;
+    }
+  }
+
+  BoxConstraints _getInnerConstraints(BoxConstraints constraints) {
+    switch (gridDirection) {
+      case Axis.horizontal:
+        return constraints.heightConstraints();
+      case Axis.vertical:
+        return constraints.widthConstraints();
+    }
   }
 
   @override
@@ -242,15 +286,12 @@ class RenderAsymmetricGrid extends RenderBox
     return defaultHitTestChildren(result, position: position);
   }
 
-  Offset _getPositionInGrid(PositionedSize current) {
-    var x = current.offset.dx;
+  Offset _getPositionInGridLTR(PositionedSize current) {
+    var x = current.offset.dx, y = current.offset.dy, positionedSize = current;
 
-    var y = current.offset.dy;
-
-    var positionedSize = current;
-
-    if (current.endX > maxHorizontalSize) {
-      y = 0;
+    if ((gridDirection == Axis.horizontal && positionedSizes.length % crossAxisWidgetCount == 0) ||
+        positionedSize.endX > maxHorizontalSize) {
+      y += current.size.height + crossAxisSpacing;
       x = 0;
       positionedSize = positionedSize.updatePosition(
         y: y,
@@ -258,23 +299,64 @@ class RenderAsymmetricGrid extends RenderBox
       );
     }
 
-    if ((positionedSizes.length) % (horizontalLength * verticalLength) == 0) {
+    x = _getXBasedOnOtherPositionsInSameRow(positionedSize);
+    positionedSize = positionedSize.updatePosition(x: x);
+
+    if (gridDirection == Axis.horizontal && positionedSize.endY > maxVerticalSize) {
       y = 0;
-      x += maxHorizontalSize;
-      positionedSize = positionedSize.updatePosition(y: y, x: x);
+      positionedSize = positionedSize.updatePosition(y: y);
+      x = _getXBasedOnOtherPositionsInSameRow(positionedSize);
+
+      positionedSize = positionedSize.updatePosition(x: x);
     }
 
     y = _getYBasedOnOthersInSameColumn(positionedSize);
     positionedSize = positionedSize.updatePosition(y: y);
 
+    x = _getXBasedOnOtherPositionsInSameRow(positionedSize);
+    positionedSize = positionedSize.updatePosition(x: x);
+
+    y = _getYBasedOnOthersInSameColumn(positionedSize);
+    positionedSize = positionedSize.updatePosition(y: y);
+
+    return positionedSize.offset;
+  }
+
+  Offset _getPositionInGridTTB(PositionedSize current) {
+    var x = current.offset.dx, y = current.offset.dy, positionedSize = current;
+
+    y = _getYBasedOnOthersInSameColumn(positionedSize);
+    positionedSize = positionedSize.updatePosition(y: y);
+
+    if ((gridDirection == Axis.vertical && positionedSizes.length % crossAxisWidgetCount == 0)) {
+      y = 0;
+      x += crossAxisSpacing + positionedSize.size.width;
+      positionedSize = positionedSize.updatePosition(
+        y: y,
+        x: x,
+      );
+      y = _getYBasedOnOthersInSameColumn(positionedSize);
+      positionedSize = positionedSize.updatePosition(y: y);
+    }
+
     if (positionedSize.endY > maxVerticalSize) {
-      y = maxVerticalSize - positionedSize.size.height;
+      y -= crossAxisSpacing + positionedSize.size.height;
       positionedSize = positionedSize.updatePosition(y: y);
     }
 
     x = _getXBasedOnOtherPositionsInSameRow(positionedSize);
     positionedSize = positionedSize.updatePosition(x: x);
 
+    if (positionedSize.endX > maxHorizontalSize) {
+      y = 0;
+      x = 0;
+      positionedSize = positionedSize.updatePosition(
+        y: y,
+        x: x,
+      );
+      y = _getYBasedOnOthersInSameColumn(positionedSize);
+      positionedSize = positionedSize.updatePosition(y: y);
+    }
     y = _getYBasedOnOthersInSameColumn(positionedSize);
     positionedSize = positionedSize.updatePosition(y: y);
 
@@ -288,6 +370,9 @@ class RenderAsymmetricGrid extends RenderBox
         listWithPrimePosition.add(primePositionedSize!);
       }*/
       final othersInSameRow = listWithPrimePosition.where((element) => current.conflictingYTo(element)).toList();
+      if (othersInSameRow.isEmpty) {
+        return 0;
+      }
       final closestWidget = _getClosestAvailableXPosition(othersInSameRow, current);
 
       return closestWidget.offset.dx;
@@ -304,6 +389,9 @@ class RenderAsymmetricGrid extends RenderBox
       }*/
 
       final othersInSameColumn = listWithPrimePosition.where((element) => current.conflictingXTo(element)).toList();
+      if (othersInSameColumn.isEmpty) {
+        return 0;
+      }
       final closestTopPosition = _getClosestAvailableYPosition(othersInSameColumn, current);
 
       return closestTopPosition.offset.dy;
