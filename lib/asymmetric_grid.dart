@@ -13,7 +13,7 @@ class AsymmetricGrid extends MultiChildRenderObjectWidget {
     this.mainAxisSpacing = 0,
     this.crossAxisSpacing = 0,
   })  : alignmentDirection = gridDirection == Axis.vertical ? Axis.horizontal : Axis.vertical,
-        crossAxisWidgetCount = 0;
+        crossAxisWidgetCount = 1;
 
   AsymmetricGrid.sameDirectionAlignment({
     required super.children,
@@ -128,7 +128,7 @@ class RenderAsymmetricGrid extends RenderBox
   int get crossAxisWidgetCount => _crossAxisWidgetCount;
 
   set crossAxisWidgetCount(int value) {
-    assert(value > 0, 'mainAxisSpacing must be greater than zero.');
+    assert(value > 0, 'CrossAxisWidgetCount must be greater than zero.');
     if (value == _crossAxisWidgetCount) return;
     _crossAxisWidgetCount = value;
     markParentNeedsLayout();
@@ -291,7 +291,7 @@ class RenderAsymmetricGrid extends RenderBox
 
     if ((gridDirection == Axis.horizontal && positionedSizes.length % crossAxisWidgetCount == 0) ||
         positionedSize.endX > maxHorizontalSize) {
-      y += current.size.height + crossAxisSpacing;
+      y = 0;
       x = 0;
       positionedSize = positionedSize.updatePosition(
         y: y,
@@ -299,24 +299,21 @@ class RenderAsymmetricGrid extends RenderBox
       );
     }
 
-    x = _getXBasedOnOtherPositionsInSameRow(positionedSize);
-    positionedSize = positionedSize.updatePosition(x: x);
+    y = _getYBasedOnOthersInSameColumn(positionedSize);
+    positionedSize = positionedSize.updatePosition(y: y);
 
     if (gridDirection == Axis.horizontal && positionedSize.endY > maxVerticalSize) {
       y = 0;
       positionedSize = positionedSize.updatePosition(y: y);
-      x = _getXBasedOnOtherPositionsInSameRow(positionedSize);
-
-      positionedSize = positionedSize.updatePosition(x: x);
     }
-
-    y = _getYBasedOnOthersInSameColumn(positionedSize);
-    positionedSize = positionedSize.updatePosition(y: y);
 
     x = _getXBasedOnOtherPositionsInSameRow(positionedSize);
     positionedSize = positionedSize.updatePosition(x: x);
 
-    y = _getYBasedOnOthersInSameColumn(positionedSize);
+    y = _getYBasedOnOthersInSameColumn(
+      positionedSize,
+      positionCorrection: true,
+    );
     positionedSize = positionedSize.updatePosition(y: y);
 
     return positionedSize.offset;
@@ -357,13 +354,18 @@ class RenderAsymmetricGrid extends RenderBox
       y = _getYBasedOnOthersInSameColumn(positionedSize);
       positionedSize = positionedSize.updatePosition(y: y);
     }
-    y = _getYBasedOnOthersInSameColumn(positionedSize);
+    y = _getYBasedOnOthersInSameColumn(positionedSize, positionCorrection: true);
     positionedSize = positionedSize.updatePosition(y: y);
+    x = _getXBasedOnOtherPositionsInSameRow(
+      positionedSize,
+      positionCorrection: true,
+    );
+    positionedSize = positionedSize.updatePosition(x: x);
 
     return positionedSize.offset;
   }
 
-  double _getXBasedOnOtherPositionsInSameRow(PositionedSize current) {
+  double _getXBasedOnOtherPositionsInSameRow(PositionedSize current, {bool positionCorrection = false}) {
     try {
       final listWithPrimePosition = List.of(positionedSizes);
       /*    if (primePositionedSize != null) {
@@ -373,7 +375,11 @@ class RenderAsymmetricGrid extends RenderBox
       if (othersInSameRow.isEmpty) {
         return 0;
       }
-      final closestWidget = _getClosestAvailableXPosition(othersInSameRow, current);
+      final closestWidget = _getClosestAvailableXPosition(
+        othersInSameRow,
+        current,
+        positionCorrection,
+      );
 
       return closestWidget.offset.dx;
     } catch (_) {
@@ -381,7 +387,7 @@ class RenderAsymmetricGrid extends RenderBox
     }
   }
 
-  double _getYBasedOnOthersInSameColumn(PositionedSize current) {
+  double _getYBasedOnOthersInSameColumn(PositionedSize current, {bool positionCorrection = false}) {
     try {
       final listWithPrimePosition = List.of(positionedSizes);
 /*      if (primePositionedSize != null) {
@@ -392,7 +398,11 @@ class RenderAsymmetricGrid extends RenderBox
       if (othersInSameColumn.isEmpty) {
         return 0;
       }
-      final closestTopPosition = _getClosestAvailableYPosition(othersInSameColumn, current);
+      final closestTopPosition = _getClosestAvailableYPosition(
+        othersInSameColumn,
+        current,
+        positionCorrection,
+      );
 
       return closestTopPosition.offset.dy;
     } catch (_) {
@@ -400,10 +410,11 @@ class RenderAsymmetricGrid extends RenderBox
     }
   }
 
-  PositionedSize _getClosestAvailableXPosition(List<PositionedSize> othersInSameRow, PositionedSize current) {
+  PositionedSize _getClosestAvailableXPosition(
+      List<PositionedSize> othersInSameRow, PositionedSize current, bool positionCorrection) {
     final sortedList = List.of(othersInSameRow)..sort((a, b) => a.endX.compareTo(b.endX));
 
-    if (sortedList.where((element) => current.isConflictTo(element)).isEmpty) {
+    if (!positionCorrection && sortedList.where((element) => current.isConflictTo(element)).isEmpty) {
       return current;
     }
     var tempPosition = current;
@@ -420,10 +431,11 @@ class RenderAsymmetricGrid extends RenderBox
     return tempPosition;
   }
 
-  PositionedSize _getClosestAvailableYPosition(List<PositionedSize> othersInSameColumn, PositionedSize current) {
+  PositionedSize _getClosestAvailableYPosition(
+      List<PositionedSize> othersInSameColumn, PositionedSize current, bool positionCorrection) {
     final sortedList = List.of(othersInSameColumn)..sort((a, b) => a.endY.compareTo(b.endY));
 
-    if (sortedList.where((element) => current.isConflictTo(element)).isEmpty) {
+    if (!positionCorrection && sortedList.where((element) => current.isConflictTo(element)).isEmpty) {
       return current;
     }
 
