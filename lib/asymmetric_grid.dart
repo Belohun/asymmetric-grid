@@ -8,10 +8,11 @@ class AsymmetricGrid extends MultiChildRenderObjectWidget {
   ///Creates array of children that will position themselves in closest available position.
   AsymmetricGrid({
     required super.children,
-    super.key,
     this.gridDirection = Axis.vertical,
     this.mainAxisSpacing = 0,
     this.crossAxisSpacing = 0,
+    this.keepPositionOnChildSizeChange = true,
+    super.key,
   })  : alignmentDirection = gridDirection == Axis.vertical ? Axis.horizontal : Axis.vertical,
         crossAxisWidgetCount = 1;
 
@@ -21,6 +22,7 @@ class AsymmetricGrid extends MultiChildRenderObjectWidget {
     this.gridDirection = Axis.vertical,
     this.mainAxisSpacing = 0,
     this.crossAxisSpacing = 0,
+    this.keepPositionOnChildSizeChange = true,
     super.key,
   }) : alignmentDirection = gridDirection;
 
@@ -41,6 +43,10 @@ class AsymmetricGrid extends MultiChildRenderObjectWidget {
   ///Widget count in crossAxis direction to [gridDirection]. This only affects when [gridDirection] is in same direction as [alignmentDirection].
   final int crossAxisWidgetCount;
 
+  ///When size of certain children changes they will keep theirs position if possible.
+  ///This can be useful when child changes its size f.e. when being pressed on, so that widget doesn't jump from under user finger.
+  final bool keepPositionOnChildSizeChange;
+
   @override
   RenderObject createRenderObject(BuildContext context) {
     return RenderAsymmetricGrid(
@@ -49,6 +55,7 @@ class AsymmetricGrid extends MultiChildRenderObjectWidget {
       mainAxisSpacing: mainAxisSpacing,
       alignmentDirection: alignmentDirection,
       crossAxisWidgetCount: crossAxisWidgetCount,
+      keepPositionOnChildSizeChange: keepPositionOnChildSizeChange,
     );
   }
 
@@ -75,11 +82,13 @@ class RenderAsymmetricGrid extends RenderBox
     required double mainAxisSpacing,
     required Axis alignmentDirection,
     required int crossAxisWidgetCount,
+    required bool keepPositionOnChildSizeChange,
   })  : _gridDirection = gridDirection,
         _mainAxisSpacing = mainAxisSpacing,
         _crossAxisSpacing = crossAxisSpacing,
         _alignmentDirection = alignmentDirection,
-        _crossAxisWidgetCount = crossAxisWidgetCount;
+        _crossAxisWidgetCount = crossAxisWidgetCount,
+        _keepPositionOnChildSizeChange = keepPositionOnChildSizeChange;
 
   Axis _gridDirection;
 
@@ -134,6 +143,16 @@ class RenderAsymmetricGrid extends RenderBox
     markParentNeedsLayout();
   }
 
+  bool _keepPositionOnChildSizeChange;
+
+  bool get keepPositionOnChildSizeChange => _keepPositionOnChildSizeChange;
+
+  set keepPositionOnChildSizeChange(bool value) {
+    if (value == _keepPositionOnChildSizeChange) return;
+    _keepPositionOnChildSizeChange = value;
+    markParentNeedsLayout();
+  }
+
   late double maxVerticalSize;
   late double maxHorizontalSize;
 
@@ -162,7 +181,6 @@ class RenderAsymmetricGrid extends RenderBox
         currentX,
         currentY,
       );
-
       child.layout(
         _getInnerConstraints(constraints),
         parentUsesSize: true,
