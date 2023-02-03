@@ -4,10 +4,12 @@ class PositionedSize {
   const PositionedSize({
     required this.offset,
     required this.size,
+    required this.widgetHashCode,
   });
 
   final Offset offset;
   final Size size;
+  final int widgetHashCode;
 
   double get endY => offset.dy + size.height;
 
@@ -20,6 +22,7 @@ class PositionedSize {
       PositionedSize(
         offset: offset ?? this.offset,
         size: size ?? this.size,
+        widgetHashCode: widgetHashCode,
       );
 
   PositionedSize updatePosition({
@@ -32,6 +35,7 @@ class PositionedSize {
           y ?? offset.dy,
         ),
         size: size,
+        widgetHashCode: widgetHashCode,
       );
 
   bool isConflictTo(PositionedSize other) => conflictingXTo(other) && conflictingYTo(other);

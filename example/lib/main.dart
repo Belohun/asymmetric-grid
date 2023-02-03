@@ -49,6 +49,7 @@ class _HomePageState extends State<HomePage> {
           child: AsymmetricGrid(
             crossAxisSpacing: 16,
             mainAxisSpacing: 16,
+            keepPositionOnChildSizeChange: true,
             children: generateChildren().toList(),
           ),
         ),

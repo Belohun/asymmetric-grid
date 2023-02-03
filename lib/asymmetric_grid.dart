@@ -1,6 +1,7 @@
 library asymmetric_grid;
 
 import 'package:asymmetric_grid/positioned_size.dart';
+import 'package:asymmetric_grid/util/iterable_extension.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/rendering.dart';
 
@@ -44,7 +45,7 @@ class AsymmetricGrid extends MultiChildRenderObjectWidget {
   final int crossAxisWidgetCount;
 
   ///When size of certain children changes they will keep theirs position if possible.
-  ///This can be useful when child changes its size f.e. when being pressed on, so that widget doesn't jump from under user finger.
+  ///This can be useful when child changes its size f.e. when being pressed on, so that widget doesn't jump from the position that have been clicked on.
   final bool keepPositionOnChildSizeChange;
 
   @override
@@ -158,6 +159,8 @@ class RenderAsymmetricGrid extends RenderBox
 
   List<PositionedSize> positionedSizes = [];
 
+  List<PositionedSize> previousPositionedSizes = [];
+
   @override
   void setupParentData(covariant RenderObject child) {
     if (child.parentData is! AsymmetricGridParentData) {
@@ -177,6 +180,39 @@ class RenderAsymmetricGrid extends RenderBox
 
     while (child != null) {
       final childParentData = child.parentData as AsymmetricGridParentData;
+
+      if (_keepPositionOnChildSizeChange && previousPositionedSizes.isNotEmpty) {
+        bool checkChildren = true;
+
+        while (checkChildren) {
+          final previousPositionedSize =
+              previousPositionedSizes.firstWhereOrNull((element) => element.widgetHashCode == child.hashCode);
+          if (previousPositionedSize != null) {
+            final sizeChanged = child?.size != previousPositionedSize.size;
+            if (sizeChanged) {
+              PositionedSize newPositionedSize = previousPositionedSize.copyWith(size: child!.size);
+              if (newPositionedSize.endX > maxHorizontalSize) {
+                final vector = newPositionedSize.size.width - previousPositionedSize.size.width;
+                final newX = newPositionedSize.offset.dx - vector;
+                newPositionedSize = newPositionedSize.updatePosition(x: newX);
+              }
+              if (newPositionedSize.endY > maxVerticalSize) {
+                final vector = newPositionedSize.size.height - previousPositionedSize.size.height;
+                final newY = newPositionedSize.offset.dy - vector;
+                newPositionedSize = newPositionedSize.updatePosition(y: newY);
+              }
+
+              positionedSizes.add(newPositionedSize);
+            }
+          }
+
+          child = childParentData.nextSibling;
+          checkChildren = child != null;
+        }
+
+        child = firstChild!;
+      } //TODO handle already positioned size
+
       var currentPosition = Offset(
         currentX,
         currentY,
@@ -187,7 +223,11 @@ class RenderAsymmetricGrid extends RenderBox
       );
 
       if (child != firstChild) {
-        final positionedSize = PositionedSize(offset: currentPosition, size: child.size);
+        final positionedSize = PositionedSize(
+          offset: currentPosition,
+          size: child.size,
+          widgetHashCode: child.hashCode,
+        );
 
         switch (_alignmentDirection) {
           case Axis.horizontal:
@@ -215,6 +255,7 @@ class RenderAsymmetricGrid extends RenderBox
       final positionedSize = PositionedSize(
         offset: currentPosition,
         size: child.size,
+        widgetHashCode: child.hashCode,
       );
       positionedSizes.add(positionedSize);
 
@@ -222,6 +263,8 @@ class RenderAsymmetricGrid extends RenderBox
     }
 
     _setUpSize(constraints);
+
+    previousPositionedSizes = positionedSizes;
 
     positionedSizes = [];
   }
