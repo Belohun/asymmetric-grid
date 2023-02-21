@@ -1,5 +1,5 @@
 import 'dart:ui';
-import 'package:asymmetric_grid/positioned_size.dart';
+import 'package:asymmetric_grid/src/model/positioned_size.dart';
 
 class PositionedSizeMock extends PositionedSize {
   const PositionedSizeMock({

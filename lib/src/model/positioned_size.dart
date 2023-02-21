@@ -45,4 +45,11 @@ class PositionedSize {
 
   bool conflictingYTo(PositionedSize other) =>
       (other.offset.dy <= offset.dy && offset.dy <= other.endY) || (other.offset.dy <= endY && endY <= other.endY);
+
+  int get offsetKey {
+    final x = offset.dx.toInt();
+    final y = offset.dy.toInt();
+    final xY = '$x$y';
+    return int.parse(xY);
+  }
 }

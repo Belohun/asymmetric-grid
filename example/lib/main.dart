@@ -46,10 +46,9 @@ class _HomePageState extends State<HomePage> {
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: SingleChildScrollView(
-          child: AsymmetricGrid(
+          child: AsymmetricGridView(
             crossAxisSpacing: 16,
             mainAxisSpacing: 16,
-            keepPositionOnChildSizeChange: true,
             children: generateChildren().toList(),
           ),
         ),
@@ -73,19 +72,11 @@ class _HomePageState extends State<HomePage> {
     for (var i = 0; i < childrenCount; i++) {
       final size = _getSize(i);
 
-      yield CupertinoButton(
-        padding: EdgeInsets.zero,
+      yield _Item(
+        size: size,
         onPressed: () => _changeSize(i),
-        child: AnimatedContainer(
-          curve: Curves.ease,
-          duration: _animationDuration,
-          color: colorList[k],
-          height: size,
-          width: size,
-          child: Center(
-            child: Text('$i', style: TextStyle(color: Colors.black)),
-          ),
-        ),
+        i: i,
+        k: k,
       );
 
       k++;
@@ -102,5 +93,38 @@ class _HomePageState extends State<HomePage> {
     } else {
       return 70.0;
     }
+  }
+}
+
+class _Item extends StatelessWidget  {
+  _Item({
+    Key? key,
+    required this.size,
+    required this.onPressed,
+    required this.i,
+    required this.k,
+  }) : super(key: key);
+
+  final double size;
+  final VoidCallback onPressed;
+  final int i;
+  final int k;
+
+  @override
+  Widget build(BuildContext context) {
+    return CupertinoButton(
+      padding: EdgeInsets.zero,
+      onPressed: onPressed,
+      child: AnimatedContainer(
+        curve: Curves.ease,
+        duration: _animationDuration,
+        color: colorList[k],
+        height: size,
+        width: size,
+        child: Center(
+          child: Text('$i', style: TextStyle(color: Colors.black)),
+        ),
+      ),
+    );
   }
 }
