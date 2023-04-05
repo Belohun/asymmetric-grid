@@ -10,9 +10,13 @@ mixin KeepPositionOnSizeChangeMixin on Widget {
 
   PositionedSize? get positionedSize => _positionedSize;
 
+  Size get size => throw Exception("Not implemented");
+
   set positionedSize(PositionedSize? newSize) {
     if (newSize == positionedSize) return;
-    positionChanged = true;
+    if (_positionedSize != null && _positionedSize?.size != newSize?.size) {
+      positionChanged = true;
+    }
     _positionedSize = newSize;
   }
 }

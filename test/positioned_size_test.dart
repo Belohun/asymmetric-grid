@@ -26,6 +26,12 @@ void main() {
     expect(Mocks.rightBottomSize.isConflictTo(Mocks.rightTopSize), false);
     expect(Mocks.rightBottomSize.isConflictTo(Mocks.leftBottomSize), false);
     expect(Mocks.rightBottomSize.isConflictTo(Mocks.leftTopSize), false);
+
+    expect(Mocks.belowCenterSize.isConflictTo(Mocks.centerSize), false);
+    expect(Mocks.centerSize.isConflictTo(Mocks.belowCenterSize), false);
+
+    expect(Mocks.belowCenterSizeBig.isConflictTo(Mocks.centerSize), false);
+    expect(Mocks.centerSize.isConflictTo(Mocks.belowCenterSizeBig), false);
   });
 
   test('Checks if positions are in same column', () {
@@ -36,6 +42,10 @@ void main() {
     expect(Mocks.rightTopSize.conflictingXTo(Mocks.rightBottomSize), true);
     expect(Mocks.rightTopSize.conflictingXTo(Mocks.leftTopSize), false);
     expect(Mocks.rightTopSize.conflictingXTo(Mocks.leftBottomSize), false);
+
+    expect(Mocks.belowCenterSize.conflictingXTo(Mocks.centerSize), true);
+    expect(Mocks.centerSize.conflictingXTo(Mocks.belowCenterSize), true);
+
   });
 
   test('Checks if positions are in same row', () {
@@ -46,5 +56,10 @@ void main() {
     expect(Mocks.leftBottomSize.conflictingYTo(Mocks.rightBottomSize), true);
     expect(Mocks.leftBottomSize.conflictingYTo(Mocks.leftTopSize), false);
     expect(Mocks.leftBottomSize.conflictingYTo(Mocks.rightTopSize), false);
+
+    expect(Mocks.belowCenterSize.conflictingYTo(Mocks.centerSize), false);
+    expect(Mocks.centerSize.conflictingYTo(Mocks.belowCenterSize), false);
   });
+
+
 }

@@ -40,16 +40,20 @@ class PositionedSize {
 
   bool isConflictTo(PositionedSize other) => conflictingXTo(other) && conflictingYTo(other);
 
-  bool conflictingXTo(PositionedSize other) =>
-      (other.offset.dx <= offset.dx && offset.dx <= other.endX) || (other.offset.dx <= endX && endX <= other.endX);
+  bool conflictingXTo(PositionedSize other) => (offset.dx < other.endX && endX > other.offset.dx);
 
-  bool conflictingYTo(PositionedSize other) =>
-      (other.offset.dy <= offset.dy && offset.dy <= other.endY) || (other.offset.dy <= endY && endY <= other.endY);
+  bool conflictingYTo(PositionedSize other) => (offset.dy < other.endY && endY > other.offset.dy);
 
-  int get offsetKey {
-    final x = offset.dx.toInt();
-    final y = offset.dy.toInt();
-    final xY = '$x$y';
-    return int.parse(xY);
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+
+    return other is PositionedSize &&
+        other.offset == offset &&
+        other.size == size &&
+        other.widgetHashCode == widgetHashCode;
   }
+
+  @override
+  int get hashCode => offset.hashCode ^ size.hashCode ^ widgetHashCode.hashCode;
 }

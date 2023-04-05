@@ -12,15 +12,73 @@ class PositionedSizeMock extends PositionedSize {
 class Mocks {
   const Mocks._();
 
-  static const size = Size(50, 50);
+  static const sideSize = 50.0;
+  static const sideSizeBig = 75.0;
+  static const centerPosition = 25.0;
 
-  static const centerSize = PositionedSizeMock(offset: Offset(25, 25), size: size);
+  static const size = Size(
+    sideSize,
+    sideSize,
+  );
 
-  static const leftTopSize = PositionedSizeMock(offset: Offset(0, 0), size: size);
+  static const sizeBig = Size(
+    sideSizeBig,
+    sideSizeBig,
+  );
 
-  static const rightTopSize = PositionedSizeMock(offset: Offset(75, 0), size: size);
+  static const centerSize = PositionedSizeMock(
+    offset: Offset(
+      centerPosition,
+      centerPosition,
+    ),
+    size: size,
+  );
 
-  static const rightBottomSize = PositionedSizeMock(offset: Offset(75, 75), size: size);
+  static const leftTopSize = PositionedSizeMock(
+    offset: Offset(
+      0,
+      0,
+    ),
+    size: size,
+  );
 
-  static const leftBottomSize = PositionedSizeMock(offset: Offset(0, 75), size: size);
+  static const rightTopSize = PositionedSizeMock(
+    offset: Offset(
+      sideSize,
+      0,
+    ),
+    size: size,
+  );
+
+  static const rightBottomSize = PositionedSizeMock(
+    offset: Offset(
+      sideSize,
+      sideSize,
+    ),
+    size: size,
+  );
+
+  static const leftBottomSize = PositionedSizeMock(
+    offset: Offset(
+      0,
+      sideSize,
+    ),
+    size: size,
+  );
+
+  static const belowCenterSize = PositionedSizeMock(
+    offset: Offset(
+      centerPosition,
+      sideSize + sideSize,
+    ),
+    size: size,
+  );
+
+  static const belowCenterSizeBig = PositionedSizeMock(
+    offset: Offset(
+      centerPosition,
+      sideSize + sideSize,
+    ),
+    size: sizeBig,
+  );
 }

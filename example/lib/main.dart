@@ -73,7 +73,7 @@ class _HomePageState extends State<HomePage> {
       final size = _getSize(i);
 
       yield _Item(
-        size: size,
+        dimension: size,
         onPressed: () => _changeSize(i),
         i: i,
         k: k,
@@ -96,31 +96,34 @@ class _HomePageState extends State<HomePage> {
   }
 }
 
-class _Item extends StatelessWidget  {
+class _Item extends StatelessWidget with KeepPositionOnSizeChangeMixin {
   _Item({
     Key? key,
-    required this.size,
+    required this.dimension,
     required this.onPressed,
     required this.i,
     required this.k,
   }) : super(key: key);
 
-  final double size;
+  final double dimension;
   final VoidCallback onPressed;
   final int i;
   final int k;
+
+  @override
+  Size get size => Size(dimension, dimension);
 
   @override
   Widget build(BuildContext context) {
     return CupertinoButton(
       padding: EdgeInsets.zero,
       onPressed: onPressed,
-      child: AnimatedContainer(
-        curve: Curves.ease,
-        duration: _animationDuration,
+      child: Container(
+      /*  curve: Curves.ease,
+        duration: _animationDuration,*/
         color: colorList[k],
-        height: size,
-        width: size,
+        height: dimension,
+        width: dimension,
         child: Center(
           child: Text('$i', style: TextStyle(color: Colors.black)),
         ),

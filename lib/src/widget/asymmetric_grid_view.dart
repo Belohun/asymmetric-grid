@@ -1,4 +1,5 @@
 import 'package:asymmetric_grid/asymmetric_grid.dart';
+import 'package:asymmetric_grid/src/util/iterable_extension.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/rendering.dart';
 
@@ -82,6 +83,7 @@ class RenderAsymmetricGrid extends RenderBox
         _crossAxisWidgetCount = crossAxisWidgetCount;
 
   final List<Widget> widgetList;
+  List<Widget> tempWidgetList = [];
 
   Axis _gridDirection;
 
@@ -141,6 +143,26 @@ class RenderAsymmetricGrid extends RenderBox
 
   List<PositionedSize> positionedSizes = [];
 
+  List<PositionedSize> primeSizes = [];
+
+  double get _horizontalSpacing {
+    switch (_alignmentDirection) {
+      case Axis.horizontal:
+        return _mainAxisSpacing;
+      case Axis.vertical:
+        return _crossAxisSpacing;
+    }
+  }
+
+  double get _verticalSpacing {
+    switch (_alignmentDirection) {
+      case Axis.horizontal:
+        return _crossAxisSpacing;
+      case Axis.vertical:
+        return _mainAxisSpacing;
+    }
+  }
+
   @override
   void setupParentData(covariant RenderObject child) {
     if (child.parentData is! AsymmetricGridParentData) {
@@ -150,6 +172,9 @@ class RenderAsymmetricGrid extends RenderBox
 
   @override
   void performLayout() {
+    //TODO Add Test for keep position, fix for animated position, TTB variation, exceeding for primeSizes after conflict with other prime size, prime size keeps it status event when position not changed
+
+    tempWidgetList = List.from(widgetList);
     final BoxConstraints constraints = this.constraints;
     maxHorizontalSize = constraints.maxWidth;
     maxVerticalSize = constraints.maxHeight;
@@ -164,17 +189,13 @@ class RenderAsymmetricGrid extends RenderBox
 
     for (var i = 0; i < childrenToPosition.length; i++) {
       final child = childrenToPosition[i];
-      final widget = widgetList[i];
+      final widget = i < widgetList.length ? widgetList[i] : null;
 
       final childParentData = child.parentData as AsymmetricGridParentData;
 
       var currentPosition = Offset(
         currentX,
         currentY,
-      );
-      child.layout(
-        _getInnerConstraints(constraints),
-        parentUsesSize: true,
       );
 
       if (child != firstChild) {
@@ -207,14 +228,14 @@ class RenderAsymmetricGrid extends RenderBox
           break;
       }
 
-      final positionedSize = PositionedSize(
+      var positionedSize = PositionedSize(
         offset: currentPosition,
         size: child.size,
         widgetHashCode: child.hashCode,
       );
-      if (child is KeepPositionOnSizeChangeMixin) {
-        (child as KeepPositionOnSizeChangeMixin).positionedSize = positionedSize;
-      }
+
+      final notCollidingOffset = _getNotCollidingOffset(positionedSize);
+      positionedSize = positionedSize.copyWith(offset: notCollidingOffset); //TODO take prime size for next position to start
 
       if (widget is KeepPositionOnSizeChangeMixin) {
         widget.positionedSize = positionedSize;
@@ -226,33 +247,46 @@ class RenderAsymmetricGrid extends RenderBox
     _setUpSize(constraints);
 
     positionedSizes = [];
+    primeSizes = [];
   }
 
   Iterable<RenderBox> generateChildrenToPosition() sync* {
     final childrenList = getChildrenAsList();
 
-    for (var i = 0; i < childrenList.length; i++) {
+    for (var i = 0, k = 0; i < childrenList.length; i++) {
       final child = childrenList[i];
-      final widget = widgetList[i];
+      final widget = tempWidgetList[k];
 
-      if (widget is KeepPositionOnSizeChangeMixin && widget.positionChanged) {
-        final childParentData = child.parentData as AsymmetricGridParentData;
-        childrenList.remove(child);
+      child.layout(
+        _getInnerConstraints(constraints),
+        parentUsesSize: true,
+      );
 
-        if (widget.positionedSize != null) {
-          positionedSizes.add(widget.positionedSize!);
-        }
-        childParentData.offset = widget.positionedSize?.offset ?? Offset.zero;
-        child.layout(_getInnerConstraints(constraints), parentUsesSize: true);
-        final positionedSize = PositionedSize(
-          offset: childParentData.offset,
+      final childParentData = child.parentData as AsymmetricGridParentData;
+      final positionChanged = child.hasSize && widget is KeepPositionOnSizeChangeMixin && child.size != widget.size;
+
+      if (positionChanged) {
+        var positionedSize = PositionedSize(
+          offset: childParentData.offset == Offset.zero ? widget.positionedSize!.offset : childParentData.offset,
           size: child.size,
           widgetHashCode: child.hashCode,
         );
-        positionedSizes.add(positionedSize);
+
+        final newOffset = _getNotCollidingOffset(positionedSize);
+
+        child.layout(_getInnerConstraints(constraints), parentUsesSize: true);
+
+        childParentData.offset = newOffset;
+
+        positionedSize = positionedSize.copyWith(offset: newOffset);
+
+        primeSizes.add(positionedSize);
+        widget.positionedSize = positionedSize;
         widget.positionChanged = false;
+        tempWidgetList.remove(widget);
       } else {
         yield child;
+        k++;
       }
     }
   }
@@ -340,16 +374,16 @@ class RenderAsymmetricGrid extends RenderBox
 
     if ((gridDirection == Axis.horizontal && positionedSizes.length % crossAxisWidgetCount == 0) ||
         positionedSize.endX > maxHorizontalSize) {
-      y = 0;
+      y = current.endY + _verticalSpacing;
       x = 0;
       positionedSize = positionedSize.updatePosition(
         y: y,
         x: x,
       );
+    } else {
+      y = _getYBasedOnOthersInSameColumn(positionedSize);
+      positionedSize = positionedSize.updatePosition(y: y);
     }
-
-    y = _getYBasedOnOthersInSameColumn(positionedSize);
-    positionedSize = positionedSize.updatePosition(y: y);
 
     if (gridDirection == Axis.horizontal && positionedSize.endY > maxVerticalSize) {
       y = 0;
@@ -416,7 +450,10 @@ class RenderAsymmetricGrid extends RenderBox
 
   double _getXBasedOnOtherPositionsInSameRow(PositionedSize current, {bool positionCorrection = false}) {
     try {
-      final othersInSameRow = positionedSizes.where((element) => current.conflictingYTo(element)).toList();
+      final positionedSizesWithPrimeSizes = List.of(positionedSizes)..addAll(primeSizes);
+
+      final othersInSameRow =
+          positionedSizesWithPrimeSizes.where((element) => current.conflictingYTo(element)).toList();
       if (othersInSameRow.isEmpty) {
         return 0;
       }
@@ -434,8 +471,11 @@ class RenderAsymmetricGrid extends RenderBox
 
   double _getYBasedOnOthersInSameColumn(PositionedSize current, {bool positionCorrection = false}) {
     try {
-      final othersInSameColumn = positionedSizes.where((element) => current.conflictingXTo(element)).toList();
-      if (othersInSameColumn.isEmpty) {
+      final positionedSizesWithPrimeSizes = List.of(positionedSizes)..addAll(primeSizes);
+
+      final othersInSameColumn =
+          positionedSizesWithPrimeSizes.where((element) => current.conflictingXTo(element)).toList();
+      if (othersInSameColumn.isEmpty && !positionCorrection) {
         return 0;
       }
       final closestTopPosition = _getClosestAvailableYPosition(
@@ -454,7 +494,9 @@ class RenderAsymmetricGrid extends RenderBox
       List<PositionedSize> othersInSameRow, PositionedSize current, bool positionCorrection) {
     final sortedList = List.of(othersInSameRow)..sort((a, b) => a.endX.compareTo(b.endX));
 
-    if (!positionCorrection && sortedList.where((element) => current.isConflictTo(element)).isEmpty) {
+    final currentHasNoConflicts = sortedList.where((element) => current.isConflictTo(element)).isEmpty;
+
+    if (!positionCorrection && currentHasNoConflicts) {
       return current;
     }
     var tempPosition = current;
@@ -475,7 +517,15 @@ class RenderAsymmetricGrid extends RenderBox
       List<PositionedSize> othersInSameColumn, PositionedSize current, bool positionCorrection) {
     final sortedList = List.of(othersInSameColumn)..sort((a, b) => a.endY.compareTo(b.endY));
 
-    if (!positionCorrection && sortedList.where((element) => current.isConflictTo(element)).isEmpty) {
+    final currentHasNoConflicts = sortedList.where((element) => current.isConflictTo(element)).isEmpty;
+
+    if (!positionCorrection && currentHasNoConflicts) {
+      return current;
+    }
+
+    final currentIsOnTop = sortedList.first.offset.dy > current.endY;
+
+    if (currentHasNoConflicts && currentIsOnTop) {
       return current;
     }
 
@@ -491,5 +541,25 @@ class RenderAsymmetricGrid extends RenderBox
       }
     }
     return tempPosition;
+  }
+
+  Offset _getNotCollidingOffset(PositionedSize positionedSize) {
+    final exceededHorizontally = positionedSize.endX > (maxHorizontalSize - _horizontalSpacing);
+    final exceededVertically = positionedSize.endY > (maxVerticalSize - _verticalSpacing);
+
+    var x = exceededHorizontally
+        ? positionedSize.offset.dx - (positionedSize.endX - (maxHorizontalSize - _horizontalSpacing))
+        : positionedSize.offset.dx;
+    var y = exceededVertically
+        ? positionedSize.offset.dy - (maxVerticalSize - positionedSize.endY - _verticalSpacing)
+        : positionedSize.offset.dy;
+
+    final positionConflict = primeSizes.firstWhereOrNull((element) => element.isConflictTo(positionedSize));
+    if (positionConflict != null) {
+      //TODO add TTB
+      x = positionConflict.endX + _horizontalSpacing;
+    }
+
+    return Offset(x, y);
   }
 }
